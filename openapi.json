@@ -1,0 +1,593 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "OpenAPI Client Test API",
+    "description": "A comprehensive test API designed to validate all features of the openapi-gen crate including various data types, operations, documentation, and edge cases.",
+    "version": "2.1.0",
+    "contact": {
+      "email": "test@example.com"
+    },
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    },
+    "termsOfService": "https://example.com/terms"
+  },
+  "servers": [
+    {
+      "url": "https://api.test.com/v2",
+      "description": "Test server"
+    }
+  ],
+  "paths": {
+    "/users": {
+      "get": {
+        "summary": "List all users",
+        "description": "Retrieve a paginated list of all users in the system. Supports filtering and sorting.",
+        "operationId": "listUsers",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of users to return",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Number of users to skip",
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "description": "Filter by user type (tests Rust keyword handling)",
+            "schema": {
+              "type": "string",
+              "enum": ["admin", "user", "guest"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a new user",
+        "description": "Create a new user account with the provided information.",
+        "operationId": "createUser",
+        "requestBody": {
+          "description": "User information",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/{userId}": {
+      "get": {
+        "summary": "Get user by ID",
+        "description": "Retrieve detailed information about a specific user.",
+        "operationId": "getUserById",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "description": "Unique identifier for the user",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "User not found"
+          }
+        }
+      },
+      "put": {
+        "summary": "Update user",
+        "description": "Update an existing user's information.",
+        "operationId": "updateUser",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete user",
+        "description": "Permanently remove a user from the system.",
+        "operationId": "deleteUser",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "User deleted successfully"
+          },
+          "404": {
+            "description": "User not found"
+          }
+        }
+      }
+    },
+    "/posts/{postId}/comments": {
+      "get": {
+        "summary": "Get post comments",
+        "description": "Retrieve all comments for a specific post.",
+        "operationId": "getPostComments",
+        "parameters": [
+          {
+            "name": "postId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "self",
+            "in": "query",
+            "description": "Filter comments by self (tests Rust keyword)",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Comments retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Comment"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/data/export": {
+      "post": {
+        "summary": "Export data",
+        "operationId": "r#const",
+        "description": "Export system data (operation ID tests Rust keyword handling)",
+        "responses": {
+          "200": {
+            "description": "Export completed"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "User": {
+        "type": "object",
+        "description": "Represents a user in the system with comprehensive profile information.",
+        "required": ["id", "username", "email", "status"],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Unique identifier for the user",
+            "example": 12345
+          },
+          "username": {
+            "type": "string",
+            "description": "User's chosen username",
+            "minLength": 3,
+            "maxLength": 50,
+            "example": "john_doe"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "User's email address",
+            "example": "john@example.com"
+          },
+          "firstName": {
+            "type": "string",
+            "description": "User's first name",
+            "example": "John"
+          },
+          "lastName": {
+            "type": "string",
+            "description": "User's last name",
+            "example": "Doe"
+          },
+          "age": {
+            "type": "integer",
+            "format": "int32",
+            "description": "User's age in years",
+            "minimum": 13,
+            "maximum": 120
+          },
+          "height": {
+            "type": "number",
+            "format": "float",
+            "description": "User's height in meters",
+            "example": 1.75
+          },
+          "weight": {
+            "type": "number",
+            "format": "double",
+            "description": "User's weight in kilograms",
+            "example": 70.5
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Whether the user account is active",
+            "example": true
+          },
+          "status": {
+            "$ref": "#/components/schemas/UserStatus"
+          },
+          "type": {
+            "type": "string",
+            "description": "User type (tests Rust keyword as field name)",
+            "enum": ["admin", "user", "guest"],
+            "example": "user"
+          },
+          "tags": {
+            "type": "array",
+            "description": "List of tags associated with the user",
+            "items": {
+              "type": "string"
+            },
+            "example": ["developer", "golang", "rust"]
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Additional user metadata",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "profile": {
+            "$ref": "#/components/schemas/UserProfile"
+          },
+          "preferences": {
+            "$ref": "#/components/schemas/UserPreferences"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the user account was created",
+            "example": "2023-01-15T10:30:00Z"
+          },
+          "lastLogin": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Last login timestamp"
+          }
+        }
+      },
+      "UserStatus": {
+        "type": "string",
+        "description": "Enumeration of possible user account statuses.",
+        "enum": ["active", "inactive", "suspended", "pending"],
+        "example": "active"
+      },
+      "UserProfile": {
+        "type": "object",
+        "description": "Extended user profile information.",
+        "properties": {
+          "bio": {
+            "type": "string",
+            "description": "User's biography or description",
+            "maxLength": 500
+          },
+          "website": {
+            "type": "string",
+            "format": "uri",
+            "description": "User's personal website"
+          },
+          "location": {
+            "type": "string",
+            "description": "User's location"
+          },
+          "self": {
+            "type": "boolean",
+            "description": "Whether this is a self-profile (tests Rust keyword)"
+          }
+        }
+      },
+      "UserPreferences": {
+        "type": "object",
+        "description": "User's application preferences and settings.",
+        "properties": {
+          "theme": {
+            "type": "string",
+            "enum": ["light", "dark", "auto"],
+            "default": "auto",
+            "description": "Preferred UI theme"
+          },
+          "notifications": {
+            "$ref": "#/components/schemas/NotificationSettings"
+          },
+          "const": {
+            "type": "string",
+            "description": "Configuration constant (tests Rust keyword as field)"
+          }
+        }
+      },
+      "NotificationSettings": {
+        "type": "object",
+        "description": "User notification preferences.",
+        "properties": {
+          "email": {
+            "type": "boolean",
+            "default": true,
+            "description": "Enable email notifications"
+          },
+          "push": {
+            "type": "boolean",
+            "default": false,
+            "description": "Enable push notifications"
+          },
+          "frequency": {
+            "type": "string",
+            "enum": ["immediate", "daily", "weekly", "never"],
+            "default": "daily",
+            "description": "Notification frequency"
+          }
+        }
+      },
+      "CreateUserRequest": {
+        "type": "object",
+        "description": "Request payload for creating a new user.",
+        "required": ["username", "email"],
+        "properties": {
+          "username": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 50
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "firstName": {
+            "type": "string"
+          },
+          "lastName": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["admin", "user", "guest"],
+            "default": "user"
+          }
+        }
+      },
+      "UpdateUserRequest": {
+        "type": "object",
+        "description": "Request payload for updating user information.",
+        "properties": {
+          "firstName": {
+            "type": "string"
+          },
+          "lastName": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "profile": {
+            "$ref": "#/components/schemas/UserProfile"
+          }
+        }
+      },
+      "UserList": {
+        "type": "object",
+        "description": "Paginated list of users.",
+        "required": ["users", "total", "page"],
+        "properties": {
+          "users": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/User"
+            },
+            "description": "Array of user objects"
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Total number of users"
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Current page number"
+          },
+          "hasNext": {
+            "type": "boolean",
+            "description": "Whether there are more pages"
+          }
+        }
+      },
+      "Comment": {
+        "type": "object",
+        "description": "A comment on a post.",
+        "required": ["id", "content", "authorId"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique comment identifier"
+          },
+          "content": {
+            "type": "string",
+            "description": "Comment text content"
+          },
+          "authorId": {
+            "type": "integer",
+            "format": "int64",
+            "description": "ID of the comment author"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the comment was created"
+          },
+          "r#type": {
+            "type": "string",
+            "description": "Comment type (tests raw identifier in schema)"
+          }
+        }
+      },
+      "ValidationError": {
+        "type": "object",
+        "description": "Error response for validation failures.",
+        "required": ["message", "errors"],
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "General error message"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            },
+            "description": "List of field-specific errors"
+          }
+        }
+      },
+      "FieldError": {
+        "type": "object",
+        "description": "Error information for a specific field.",
+        "required": ["field", "message"],
+        "properties": {
+          "field": {
+            "type": "string",
+            "description": "Name of the field with error"
+          },
+          "message": {
+            "type": "string",
+            "description": "Error message for this field"
+          },
+          "code": {
+            "type": "string",
+            "description": "Error code"
+          }
+        }
+      },
+      "SimpleString": {
+        "type": "string",
+        "description": "A simple string type alias for testing."
+      },
+      "NumberArray": {
+        "type": "array",
+        "description": "An array of numbers for testing array type generation.",
+        "items": {
+          "type": "number",
+          "format": "double"
+        }
+      }
+    }
+  }
+}
