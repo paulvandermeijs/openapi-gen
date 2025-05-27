@@ -21,10 +21,12 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-openapi-gen = "0.1.0"
+openapi-gen = "0.2.0"
 reqwest = { version = "0.11", features = ["json"] }
 tokio = { version = "1.0", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+thiserror = "1.0"
 ```
 
 ### Basic Usage
@@ -219,12 +221,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## Dependencies
 
+**Runtime dependencies** (required in your project):
+- `reqwest` - HTTP client with JSON support
+- `serde` - Serialization framework (with derive feature)
+- `serde_json` - JSON serialization
+- `thiserror` - Error handling
+- `tokio` - Async runtime
+
+**Build-time dependencies** (used by the macro):
 - `proc-macro2`, `quote`, `syn` - Procedural macro infrastructure
 - `openapiv3` - OpenAPI 3.0 specification parsing
-- `serde`, `serde_json`, `serde_yaml` - Serialization
-- `reqwest` - HTTP client
-- `thiserror` - Error handling
+- `serde_yaml` - YAML parsing for specs
 - `heck` - Case conversions
+- `tokio` - For compile-time URL fetching
 
 ## Development
 

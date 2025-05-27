@@ -41,11 +41,15 @@ This is a Rust procedural macro crate that generates HTTP API clients from OpenA
 ### Usage Pattern
 
 ```rust
-// Auto-generated client name from API title
+// From local file with auto-generated client name
 openapi_client!("path/to/openapi.json");
 
-// Or with custom client name
+// From URL with auto-generated client name  
+openapi_client!("https://api.example.com/openapi.json");
+
+// With custom client name (works for both files and URLs)
 openapi_client!("path/to/openapi.json", "MyApiClient");
+openapi_client!("https://api.example.com/openapi.json", "MyApiClient");
 
 let client = MyApiClient::new("https://api.example.com");
 let result = client.some_endpoint(params).await?;

@@ -10,15 +10,25 @@ use syn::{LitStr, parse_macro_input};
 
 /// Generates an API client and structs from an OpenAPI specification
 ///
+/// Supports loading OpenAPI specifications from both local files and remote URLs.
+/// The specification format (JSON/YAML) is auto-detected from the file extension
+/// or URL path.
+///
 /// Usage:
 /// ```rust,ignore
 /// use openapi_gen::openapi_client;
 ///
-/// // With auto-generated client name (derived from API title + "Api")
+/// // From local file with auto-generated client name (derived from API title + "Api")
 /// openapi_client!("path/to/openapi.json");
+/// openapi_client!("path/to/openapi.yaml");
 ///
-/// // With custom client name
+/// // From URL with auto-generated client name
+/// openapi_client!("https://api.example.com/openapi.json");
+/// openapi_client!("https://raw.githubusercontent.com/user/repo/main/openapi.yaml");
+///
+/// // With custom client name (works for both files and URLs)
 /// openapi_client!("path/to/openapi.json", "MyApiClient");
+/// openapi_client!("https://api.example.com/openapi.json", "MyApiClient");
 /// ```
 #[proc_macro]
 pub fn openapi_client(input: TokenStream) -> TokenStream {
@@ -60,11 +70,15 @@ impl syn::parse::Parse for OpenApiInput {
 }
 
 fn generate_client(input: &OpenApiInput) -> Result<TokenStream2, String> {
-    // Read and parse the OpenAPI spec
-    let spec_content = std::fs::read_to_string(&input.spec_path)
-        .map_err(|e| format!("Failed to read spec file: {}", e))?;
+    // Read and parse the OpenAPI spec from file or URL
+    let spec_content = if is_url(&input.spec_path) {
+        fetch_url_content(&input.spec_path)?
+    } else {
+        std::fs::read_to_string(&input.spec_path)
+            .map_err(|e| format!("Failed to read spec file: {}", e))?
+    };
 
-    let spec: OpenAPI = if input.spec_path.ends_with(".yaml") || input.spec_path.ends_with(".yml") {
+    let spec: OpenAPI = if is_yaml_format(&input.spec_path) {
         serde_yaml::from_str(&spec_content).map_err(|e| format!("Failed to parse YAML: {}", e))?
     } else {
         serde_json::from_str(&spec_content).map_err(|e| format!("Failed to parse JSON: {}", e))?
@@ -332,8 +346,9 @@ fn generate_client_method(
     // Generate parameters
     let mut params = TokenStream2::new();
     let mut url_building = quote! {
-        let url = format!("{}{}", self.base_url, #path);
+        let mut url = format!("{}{}", self.base_url, #path);
     };
+    let mut query_params = Vec::new();
 
     for param_ref in &operation.parameters {
         let param = match param_ref {
@@ -343,18 +358,18 @@ fn generate_client_method(
             ReferenceOr::Item(item) => item,
         };
 
-        let (param_name, param_schema, is_path_param) = match param {
+        let (param_name, param_schema, param_location) = match param {
             openapiv3::Parameter::Query { parameter_data, .. } => {
-                (&parameter_data.name, &parameter_data.format, false)
+                (&parameter_data.name, &parameter_data.format, "query")
             }
             openapiv3::Parameter::Path { parameter_data, .. } => {
-                (&parameter_data.name, &parameter_data.format, true)
+                (&parameter_data.name, &parameter_data.format, "path")
             }
             openapiv3::Parameter::Header { parameter_data, .. } => {
-                (&parameter_data.name, &parameter_data.format, false)
+                (&parameter_data.name, &parameter_data.format, "header")
             }
             openapiv3::Parameter::Cookie { parameter_data, .. } => {
-                (&parameter_data.name, &parameter_data.format, false)
+                (&parameter_data.name, &parameter_data.format, "cookie")
             }
         };
 
@@ -368,15 +383,63 @@ fn generate_client_method(
             _ => quote! { String },
         };
 
+        // Check if this is an array parameter
+        let is_array_param = match param_schema {
+            openapiv3::ParameterSchemaOrContent::Schema(schema_ref) => {
+                match schema_ref {
+                    ReferenceOr::Item(schema) => {
+                        matches!(schema.schema_kind, SchemaKind::Type(Type::Array(_)))
+                    }
+                    _ => false,
+                }
+            }
+            _ => false,
+        };
+
         params.extend(quote! { #param_ident: #param_type, });
 
-        // Handle path parameters
-        if is_path_param {
-            let placeholder = format!("{{{}}}", param_name);
-            url_building = quote! {
-                let url = format!("{}{}", self.base_url, #path).replace(#placeholder, &#param_ident.to_string());
-            };
+        // Handle different parameter types
+        match param_location {
+            "path" => {
+                let placeholder = format!("{{{}}}", param_name);
+                url_building = quote! {
+                    let mut url = format!("{}{}", self.base_url, #path).replace(#placeholder, &#param_ident.to_string());
+                };
+            }
+            "query" => {
+                query_params.push((param_name, param_ident, is_array_param));
+            }
+            _ => {
+                // Header and cookie parameters not implemented yet
+            }
         }
+    }
+
+    // Add query parameters to URL building using the url crate
+    if !query_params.is_empty() {
+        let query_building = query_params.iter().map(|(param_name, param_ident, is_array)| {
+            if *is_array {
+                quote! {
+                    // Handle array parameters by joining with commas
+                    let param_value = #param_ident.join(",");
+                    parsed_url.query_pairs_mut().append_pair(#param_name, &param_value);
+                }
+            } else {
+                quote! {
+                    // Handle single value parameters
+                    parsed_url.query_pairs_mut().append_pair(#param_name, &#param_ident.to_string());
+                }
+            }
+        });
+
+        url_building.extend(quote! {
+            let mut parsed_url = reqwest::Url::parse(&url).map_err(|e| ApiError::Api { 
+                status: 400, 
+                message: format!("Invalid URL: {}", e) 
+            })?;
+            #(#query_building)*
+            let url = parsed_url.to_string();
+        });
     }
 
     // Handle request body
@@ -698,4 +761,38 @@ fn create_rust_safe_ident(name: &str) -> Ident {
     } else {
         format_ident!("{}", name)
     }
+}
+
+/// Check if a path is a URL (starts with http:// or https://)
+fn is_url(path: &str) -> bool {
+    path.starts_with("http://") || path.starts_with("https://")
+}
+
+/// Check if a path indicates YAML format (file extension or URL path)
+fn is_yaml_format(path: &str) -> bool {
+    let path_lower = path.to_lowercase();
+    path_lower.ends_with(".yaml") || path_lower.ends_with(".yml")
+}
+
+/// Fetch content from a URL at compile time
+fn fetch_url_content(url: &str) -> Result<String, String> {
+    // Use blocking reqwest for compile-time execution
+    let rt = tokio::runtime::Runtime::new()
+        .map_err(|e| format!("Failed to create async runtime: {}", e))?;
+    
+    rt.block_on(async {
+        let client = reqwest::Client::new();
+        let response = client.get(url)
+            .send()
+            .await
+            .map_err(|e| format!("Failed to fetch URL {}: {}", url, e))?;
+
+        if !response.status().is_success() {
+            return Err(format!("HTTP error {} when fetching {}", response.status(), url));
+        }
+
+        response.text()
+            .await
+            .map_err(|e| format!("Failed to read response body: {}", e))
+    })
 }
