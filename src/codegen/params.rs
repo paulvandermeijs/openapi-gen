@@ -96,7 +96,10 @@ pub fn generate_url_building(
             if param.is_array {
                 quote! {
                     // Handle array parameters by joining with commas
-                    let param_value = #param_ident.join(",");
+                    let param_value = #param_ident.iter()
+                        .map(|n| n.to_string())
+                        .collect::<Vec<String>>()
+                        .join(",");
                     parsed_url.query_pairs_mut().append_pair(#param_name, &param_value);
                 }
             } else {
