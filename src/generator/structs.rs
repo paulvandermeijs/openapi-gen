@@ -37,7 +37,7 @@ fn generate_struct_from_schema(name: &str, schema: &Schema) -> Result<TokenStrea
 
     match &schema.schema_kind {
         SchemaKind::Type(Type::Object(obj)) => {
-            let fields = generate_struct_fields_from_object(obj, &schema.schema_data)?;
+            let fields = generate_struct_fields_from_object(name, obj, &schema.schema_data)?;
             Ok(quote! {
                 #doc_comment
                 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -69,6 +69,7 @@ fn generate_struct_from_schema(name: &str, schema: &Schema) -> Result<TokenStrea
 
 /// Generate struct fields from an object type
 fn generate_struct_fields_from_object(
+    struct_name: &str,
     obj: &ObjectType,
     _schema_data: &SchemaData,
 ) -> Result<TokenStream2, String> {
@@ -79,13 +80,18 @@ fn generate_struct_fields_from_object(
     for (field_name, field_schema_ref) in &obj.properties {
         let snake_case_name = field_name.to_snake_case();
         let field_ident = create_rust_safe_ident(&snake_case_name);
-        
+
         // Generate field documentation and type
         let (field_type, field_doc) = match field_schema_ref {
             ReferenceOr::Reference { reference } => {
                 if let Some(type_name) = reference.strip_prefix("#/components/schemas/") {
                     let type_ident = format_ident!("{}", type_name.to_pascal_case());
-                    (quote! { #type_ident }, quote! {})
+                    let ty = if type_name == struct_name {
+                        quote! { Box<#type_ident> }
+                    } else {
+                        quote! { #type_ident }
+                    };
+                    (ty, quote! {})
                 } else {
                     (quote! { serde_json::Value }, quote! {})
                 }
