@@ -95,21 +95,28 @@ pub fn generate_client_method(
         });
     }
 
-    // Determine return type
-    let return_type = determine_return_type_from_operation(operation)
-        .unwrap_or_else(|| quote! { () });
+    // Determine return type and content type
+    let (return_type, content_type) = determine_return_type_from_operation(operation)
+        .unwrap_or_else(|| (quote! { () }, "application/json".to_string()));
 
     // Generate documentation
     let doc_comment = generate_method_doc_comment(operation, path, http_method);
 
-    Ok(quote! {
-        #doc_comment
-        pub async fn #method_name(&self, #(#params)* #body_param) -> ApiResult<#return_type> {
-            #url_building
-            #request_building
-
-            let response = request.send().await?;
-
+    // Generate response parsing based on content type
+    let response_parsing = if content_type.starts_with("text/") {
+        quote! {
+            if response.status().is_success() {
+                let result: String = response.text().await?;
+                Ok(result)
+            } else {
+                Err(ApiError::Api {
+                    status: response.status().as_u16(),
+                    message: response.text().await.unwrap_or_else(|_| "Unknown error".to_string()),
+                })
+            }
+        }
+    } else {
+        quote! {
             if response.status().is_success() {
                 let result = response.json().await?;
                 Ok(result)
@@ -120,11 +127,23 @@ pub fn generate_client_method(
                 })
             }
         }
+    };
+
+    Ok(quote! {
+        #doc_comment
+        pub async fn #method_name(&self, #(#params)* #body_param) -> ApiResult<#return_type> {
+            #url_building
+            #request_building
+
+            let response = request.send().await?;
+
+            #response_parsing
+        }
     })
 }
 
-/// Determine the return type from an operation's responses
-fn determine_return_type_from_operation(operation: &openapiv3::Operation) -> Option<TokenStream2> {
+/// Determine the return type and content type from an operation's responses
+fn determine_return_type_from_operation(operation: &openapiv3::Operation) -> Option<(TokenStream2, String)> {
     let response_200 = operation
         .responses
         .responses
@@ -133,7 +152,26 @@ fn determine_return_type_from_operation(operation: &openapiv3::Operation) -> Opt
         ReferenceOr::Reference { .. } => return None,
         ReferenceOr::Item(item) => item,
     };
-    let content = response.content.get("application/json")?;
-    let schema_ref = content.schema.as_ref()?;
-    reference_or_schema_to_rust_type(schema_ref).ok()
+    
+    // Try application/json first - this is the most common case
+    if let Some(content) = response.content.get("application/json") {
+        if let Some(schema_ref) = content.schema.as_ref() {
+            if let Ok(rust_type) = reference_or_schema_to_rust_type(schema_ref) {
+                return Some((rust_type, "application/json".to_string()));
+            }
+        }
+    }
+    
+    // Only try text types if no JSON content was found
+    // Try text/plain; charset=utf-8 first (more specific)
+    if let Some(_content) = response.content.get("text/plain; charset=utf-8") {
+        return Some((quote! { String }, "text/plain; charset=utf-8".to_string()));
+    }
+    
+    // Try text/plain as fallback
+    if let Some(_content) = response.content.get("text/plain") {
+        return Some((quote! { String }, "text/plain".to_string()));
+    }
+    
+    None
 }
