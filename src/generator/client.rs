@@ -34,8 +34,27 @@ pub fn generate_client_impl(spec: &OpenAPI, client_name: &Ident) -> Result<Token
         }
     }
 
+    // Generate middleware implementation only if the feature is enabled
+    let middleware_impl = if cfg!(feature = "middleware") {
+        quote! {
+            impl #client_name<reqwest_middleware::ClientWithMiddleware> {
+                async fn send_request(request: reqwest_middleware::RequestBuilder) -> ApiResult<reqwest::Response> {
+                    request.send().await.map_err(|e| match e {
+                        reqwest_middleware::Error::Reqwest(e) => ApiError::Http(e),
+                        e => ApiError::Middleware(e.to_string()),
+                    })
+                }
+
+                #api_methods
+            }
+        }
+    } else {
+        quote! {}
+    };
+
     // Build complete impl block
     Ok(quote! {
+        // Default implementation with reqwest::Client
         impl #client_name {
             /// Create a new API client with the specified base URL
             pub fn new(base_url: impl Into<String>) -> Self {
@@ -44,16 +63,30 @@ pub fn generate_client_impl(spec: &OpenAPI, client_name: &Ident) -> Result<Token
                     client: reqwest::Client::new(),
                 }
             }
+        }
 
+        // Generic implementation for any HTTP client
+        impl<C> #client_name<C> {
             /// Create a new API client with a custom HTTP client
-            pub fn with_client(base_url: impl Into<String>, client: reqwest::Client) -> Self {
+            pub fn with_client(base_url: impl Into<String>, client: C) -> Self {
                 Self {
                     base_url: base_url.into(),
                     client,
                 }
             }
+        }
+
+        // Helper trait for sending requests
+        impl #client_name<reqwest::Client> {
+            async fn send_request(request: reqwest::RequestBuilder) -> ApiResult<reqwest::Response> {
+                request.send().await.map_err(ApiError::Http)
+            }
 
             #api_methods
         }
+
+        // Helper for middleware client - only generate if middleware feature is enabled
+        #middleware_impl
+
     })
 }

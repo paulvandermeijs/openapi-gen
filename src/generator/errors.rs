@@ -3,6 +3,16 @@ use quote::quote;
 
 /// Generate error types for the API client
 pub fn generate_error_types() -> TokenStream2 {
+    let middleware_error = if cfg!(feature = "middleware") {
+        quote! {
+            /// Middleware error
+            #[error("Middleware error: {0}")]
+            Middleware(String),
+        }
+    } else {
+        quote! {}
+    };
+
     quote! {
         #[derive(Debug, thiserror::Error)]
         pub enum ApiError {
@@ -14,6 +24,8 @@ pub fn generate_error_types() -> TokenStream2 {
 
             #[error("API error {status}: {message}")]
             Api { status: u16, message: String },
+
+            #middleware_error
         }
 
         pub type ApiResult<T> = Result<T, ApiError>;

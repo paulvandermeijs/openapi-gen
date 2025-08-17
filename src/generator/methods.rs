@@ -85,7 +85,11 @@ pub fn generate_client_method(
     // Handle request body
     let mut body_param = TokenStream2::new();
     let mut request_building = quote! {
-        let mut request = self.client.request(reqwest::Method::#http_method_ident, &url);
+        let parsed_url = reqwest::Url::parse(&url).map_err(|e| ApiError::Api {
+            status: 400,
+            message: format!("Invalid URL: {}", e)
+        })?;
+        let mut request = self.client.request(reqwest::Method::#http_method_ident, parsed_url);
     };
 
     if operation.request_body.is_some() {
@@ -135,7 +139,7 @@ pub fn generate_client_method(
             #url_building
             #request_building
 
-            let response = request.send().await?;
+            let response = Self::send_request(request).await?;
 
             #response_parsing
         }

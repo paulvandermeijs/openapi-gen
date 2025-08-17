@@ -172,6 +172,40 @@ let http_client = reqwest::Client::builder()
 let client = MyApiClient::with_client("https://api.example.com", http_client);
 ```
 
+### Middleware Support (Optional Feature)
+
+The crate supports `reqwest-middleware` for advanced use cases like request signing, retries, and logging. Enable the `middleware` feature in your `Cargo.toml`:
+
+```toml
+[dependencies]
+openapi-gen = { version = "0.3", features = ["middleware"] }
+reqwest-middleware = "0.2"
+reqwest-retry = "0.2"  # Optional, for retry middleware
+```
+
+Example using middleware:
+
+```rust
+use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
+use reqwest_retry::{RetryTransientMiddleware, policies::ExponentialBackoff};
+
+// Create a client with retry middleware
+let retry_policy = ExponentialBackoff::builder().build_with_max_retries(3);
+let middleware_client = ClientBuilder::new(reqwest::Client::new())
+    .with(RetryTransientMiddleware::new_with_policy(retry_policy))
+    .build();
+
+// Use with generated client (same as regular reqwest::Client)
+let api = MyApiClient::with_client("https://api.example.com", middleware_client);
+```
+
+This enables use cases like:
+- **Request signing** (e.g., for biscuit tokens)
+- **Automatic retries** with exponential backoff
+- **Request/response logging**
+- **Custom authentication flows**
+- **Rate limiting**
+
 ## Examples
 
 ### Complete Example

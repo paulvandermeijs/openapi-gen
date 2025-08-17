@@ -81,9 +81,9 @@ fn generate_client(input: &OpenApiInput) -> Result<TokenStream2, String> {
 
         #client_doc
         #[derive(Clone)]
-        pub struct #client_name {
+        pub struct #client_name<C = reqwest::Client> {
             base_url: String,
-            client: reqwest::Client,
+            client: C,
         }
 
         #client_impl
