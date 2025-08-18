@@ -13,6 +13,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Format code**: `cargo fmt` - **IMPORTANT: Always run after making changes**
 - **Lint code**: `cargo clippy`
 
+## Code Organization Conventions
+
+- **Module structure**: Public API (types, functions) at the top of files, private helper functions at the bottom
+- **Variable shadowing**: Prefer Rust's variable shadowing over conditional variable naming for cleaner code
+- **Parameter ergonomics**: Use `&str` for method parameters, `String` for struct fields
+
 ## Architecture Overview
 
 This is a Rust procedural macro crate that generates HTTP API clients from OpenAPI 3.0 specifications. The macro reads OpenAPI JSON/YAML files at compile time and generates complete Rust client code with typed structs and async methods.
@@ -20,23 +26,33 @@ This is a Rust procedural macro crate that generates HTTP API clients from OpenA
 ### Core Components
 
 - **Procedural macro** (`openapi_client!`): Main entry point that accepts the spec file path as first argument and optional client name as second argument
-- **Code generation engine** (`src/lib.rs`): Parses OpenAPI specs and generates:
-  - Struct definitions from `components/schemas`
-  - Enum types for string enums  
-  - HTTP client with async methods for each API endpoint
-  - Error handling with `ApiError` enum
+- **Code generation modules**:
+  - `src/lib.rs`: Main macro entry point and orchestration
+  - `src/generator/`: Core generation logic
+    - `client.rs`: Client struct and implementation generation (supports both async and blocking clients)
+    - `methods.rs`: API method generation with proper parameter handling
+    - `structs.rs`: Data structure generation from schemas
+  - `src/codegen/`: Code generation utilities
+    - `params.rs`: Parameter processing and URL building with proper optional/required handling
+    - Other utilities for type conversion and documentation
 - **Generated client features**:
-  - Async/await support via `reqwest`
+  - Async/await support via `reqwest` (default)
+  - Blocking client support via `reqwest::blocking` (with `blocking` feature)
+  - Middleware support via `reqwest-middleware` (with `middleware` feature)
   - JSON serialization via `serde`
   - Automatic path parameter substitution
   - Request body handling
   - Typed response parsing
+  - Proper parameter handling following OpenAPI 3.0 spec:
+    - Path parameters are always required
+    - Query/header/cookie parameters are optional by default unless marked `required: true`
+    - String parameters use `&str` for better ergonomics
   - Comprehensive documentation generation:
     - Client struct documentation from API info (title, description, version, license, etc.)
     - Method documentation from operation summaries and descriptions
     - Struct documentation from schema descriptions
     - Field-level documentation for struct properties
-  - Rust keyword handling with `r#` prefix
+  - Rust keyword handling with `r#` prefix or `_` suffix
 
 ### Usage Pattern
 

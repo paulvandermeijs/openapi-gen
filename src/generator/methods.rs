@@ -64,30 +64,34 @@ fn generate_client_method_with_mode(
             ReferenceOr::Item(item) => item,
         };
 
-        let (param_name, param_schema, location) = match param {
+        let (param_name, param_schema, location, required) = match param {
             openapiv3::Parameter::Query { parameter_data, .. } => (
                 &parameter_data.name,
                 &parameter_data.format,
                 ParameterLocation::Query,
+                parameter_data.required,
             ),
             openapiv3::Parameter::Path { parameter_data, .. } => (
                 &parameter_data.name,
                 &parameter_data.format,
                 ParameterLocation::Path,
+                parameter_data.required,
             ),
             openapiv3::Parameter::Header { parameter_data, .. } => (
                 &parameter_data.name,
                 &parameter_data.format,
                 ParameterLocation::Header,
+                parameter_data.required,
             ),
             openapiv3::Parameter::Cookie { parameter_data, .. } => (
                 &parameter_data.name,
                 &parameter_data.format,
                 ParameterLocation::Cookie,
+                parameter_data.required,
             ),
         };
 
-        let param_info = process_parameter(param_name, param_schema, location)?;
+        let param_info = process_parameter(param_name, param_schema, location, required)?;
         all_params.push(param_info);
     }
 

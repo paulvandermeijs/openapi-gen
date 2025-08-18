@@ -13,6 +13,7 @@ pub struct ParameterInfo {
     pub param_type: TokenStream2,
     pub location: ParameterLocation,
     pub is_array: bool,
+    pub required: bool,
 }
 
 /// Location where the parameter is used
@@ -29,15 +30,31 @@ pub fn process_parameter(
     param_name: &str,
     param_schema: &openapiv3::ParameterSchemaOrContent,
     location: ParameterLocation,
+    required: bool,
 ) -> Result<ParameterInfo, String> {
     let snake_case_param = param_name.to_snake_case();
     let param_ident = create_rust_safe_ident(&snake_case_param);
 
-    let param_type = match param_schema {
+    let base_type = match param_schema {
         openapiv3::ParameterSchemaOrContent::Schema(schema_ref) => {
-            reference_or_schema_to_rust_type(schema_ref)?
+            // For parameters, convert String types to &str for better ergonomics
+            let rust_type = reference_or_schema_to_rust_type(schema_ref)?;
+            let type_str = rust_type.to_string();
+            if type_str.trim() == "String" {
+                quote! { &str }
+            } else {
+                rust_type
+            }
         }
-        _ => quote! { String },
+        _ => quote! { &str },
+    };
+
+    // Wrap optional parameters in Option<T>
+    // Path parameters are always required by OpenAPI spec
+    let param_type = if required || location == ParameterLocation::Path {
+        base_type
+    } else {
+        quote! { Option<#base_type> }
     };
 
     // Check if this is an array parameter
@@ -57,6 +74,7 @@ pub fn process_parameter(
         param_type,
         location,
         is_array,
+        required,
     })
 }
 
@@ -91,20 +109,21 @@ pub fn generate_url_building(
             let param_name = &param.name;
             let param_ident = &param.ident;
 
-            if param.is_array {
-                quote! {
-                    // Handle array parameters by joining with commas
-                    let param_value = #param_ident.iter()
-                        .map(|n| n.to_string())
-                        .collect::<Vec<String>>()
-                        .join(",");
-                    parsed_url.query_pairs_mut().append_pair(#param_name, &param_value);
-                }
+            // Generate the appropriate value expression
+            let value_expr = if param.is_array {
+                generate_array_value_expr(param_ident)
             } else {
-                quote! {
-                    // Handle single value parameters
-                    parsed_url.query_pairs_mut().append_pair(#param_name, &#param_ident.to_string());
-                }
+                generate_single_value_expr(param_ident)
+            };
+
+            // Generate the append code
+            let append_code = generate_param_append_code(param_name, value_expr);
+
+            // Wrap in optional handling if needed
+            if param.required {
+                append_code
+            } else {
+                wrap_optional_code(append_code, param_ident)
             }
         });
 
@@ -119,4 +138,38 @@ pub fn generate_url_building(
     }
 
     url_building
+}
+
+/// Helper function to generate the core parameter append logic
+fn generate_param_append_code(param_name: &str, value_expr: TokenStream2) -> TokenStream2 {
+    quote! {
+        parsed_url.query_pairs_mut().append_pair(#param_name, &#value_expr);
+    }
+}
+
+/// Helper function to generate array value expression
+fn generate_array_value_expr(param_ident: &Ident) -> TokenStream2 {
+    quote! {
+        {
+            let param_value = #param_ident.iter()
+                .map(|n| n.to_string())
+                .collect::<Vec<String>>()
+                .join(",");
+            param_value
+        }
+    }
+}
+
+/// Helper function to generate single value expression
+fn generate_single_value_expr(param_ident: &Ident) -> TokenStream2 {
+    quote! { #param_ident.to_string() }
+}
+
+/// Helper function to wrap code for optional parameters using variable shadowing
+fn wrap_optional_code(inner_code: TokenStream2, param_ident: &Ident) -> TokenStream2 {
+    quote! {
+        if let Some(ref #param_ident) = #param_ident {
+            #inner_code
+        }
+    }
 }

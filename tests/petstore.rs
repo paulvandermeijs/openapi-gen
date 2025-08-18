@@ -46,7 +46,7 @@ async fn petstore_fetch_available_pets() {
     let client = PetstoreApi::new("https://petstore3.swagger.io/api/v3");
 
     // Fetch pets by status - should succeed for "available"
-    match client.find_pets_by_status("available".to_string()).await {
+    match client.find_pets_by_status("available").await {
         Ok(pets) => {
             println!("Successfully fetched {} available pets", pets.len());
             // Verify we got a proper response

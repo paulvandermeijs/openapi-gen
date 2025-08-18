@@ -237,6 +237,35 @@ let users = api.list_users(Some(10), Some(0))?;
 - Same method names and signatures as async versions
 - Compatible with `reqwest::blocking::Client`
 
+## Parameter Handling
+
+OpenAPI parameters are mapped to Rust function parameters following OpenAPI 3.0 specification rules:
+
+### Required vs Optional Parameters
+
+- **Path parameters**: Always required (no `Option` wrapper)
+- **Query/Header/Cookie parameters**: Optional by default, wrapped in `Option<T>` unless marked `required: true`
+
+```rust
+// Path parameters are always required
+let user = client.get_user_by_id(123).await?;
+
+// Query parameters are optional by default
+let users = client.list_users(Some(10), Some(0), Some("admin")).await?;
+let all_users = client.list_users(None, None, None).await?;
+```
+
+### String Parameters
+
+String parameters use `&str` for better ergonomics:
+
+```rust
+// String parameters accept &str (not String)
+let user = client.get_user_by_id(123).await?;
+let comments = client.get_post_comments("post123", Some(true)).await?;
+let filtered_users = client.list_users(None, None, Some("admin")).await?;
+```
+
 ## Examples
 
 ### Complete Example
