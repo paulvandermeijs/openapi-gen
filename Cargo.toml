@@ -15,6 +15,7 @@ proc-macro = true
 [features]
 default = []
 middleware = ["reqwest-middleware", "async-trait"]
+blocking = ["reqwest/blocking"]
 
 [dependencies]
 proc-macro2 = "1.0"

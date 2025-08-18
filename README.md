@@ -206,6 +206,37 @@ This enables use cases like:
 - **Custom authentication flows**
 - **Rate limiting**
 
+### Blocking Client Support (Optional Feature)
+
+The crate supports synchronous/blocking HTTP clients via the `blocking` feature flag. Enable it in your `Cargo.toml`:
+
+```toml
+[dependencies]
+openapi-gen = { version = "0.3", features = ["blocking"] }
+```
+
+Example using blocking client:
+
+```rust
+// Create a blocking client
+let blocking_client = reqwest::blocking::Client::builder()
+    .timeout(std::time::Duration::from_secs(30))
+    .build()?;
+
+// Use with generated client (same method names, but synchronous)
+let api = MyApiClient::with_client("https://api.example.com", blocking_client);
+
+// Methods are synchronous - no .await needed
+let user = api.get_user(123)?;
+let users = api.list_users(Some(10), Some(0))?;
+```
+
+**Key differences:**
+- Methods are synchronous (`fn` instead of `async fn`)
+- No `.await` needed on method calls
+- Same method names and signatures as async versions
+- Compatible with `reqwest::blocking::Client`
+
 ## Examples
 
 ### Complete Example

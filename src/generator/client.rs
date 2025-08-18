@@ -2,11 +2,12 @@ use openapiv3::{OpenAPI, ReferenceOr};
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::quote;
 
-use crate::generator::methods::generate_client_method;
+use crate::generator::methods::{generate_client_method, generate_blocking_client_method};
 
 /// Generate the complete client implementation
 pub fn generate_client_impl(spec: &OpenAPI, client_name: &Ident) -> Result<TokenStream2, String> {
     let mut api_methods = TokenStream2::new();
+    let mut blocking_api_methods = TokenStream2::new();
 
     // Generate methods from paths
     for (path, path_item_ref) in spec.paths.iter() {
@@ -28,8 +29,15 @@ pub fn generate_client_impl(spec: &OpenAPI, client_name: &Ident) -> Result<Token
             ("trace", &path_item.trace),
         ] {
             if let Some(op) = operation {
+                // Generate async methods
                 let method_tokens = generate_client_method(path, method, op)?;
                 api_methods.extend(method_tokens);
+                
+                // Generate blocking methods if feature is enabled
+                if cfg!(feature = "blocking") {
+                    let blocking_method_tokens = generate_blocking_client_method(path, method, op)?;
+                    blocking_api_methods.extend(blocking_method_tokens);
+                }
             }
         }
     }
@@ -46,6 +54,21 @@ pub fn generate_client_impl(spec: &OpenAPI, client_name: &Ident) -> Result<Token
                 }
 
                 #api_methods
+            }
+        }
+    } else {
+        quote! {}
+    };
+
+    // Generate blocking implementation only if the feature is enabled
+    let blocking_impl = if cfg!(feature = "blocking") {
+        quote! {
+            impl #client_name<reqwest::blocking::Client> {
+                fn send_request(request: reqwest::blocking::RequestBuilder) -> ApiResult<reqwest::blocking::Response> {
+                    request.send().map_err(ApiError::Http)
+                }
+
+                #blocking_api_methods
             }
         }
     } else {
@@ -87,6 +110,9 @@ pub fn generate_client_impl(spec: &OpenAPI, client_name: &Ident) -> Result<Token
 
         // Helper for middleware client - only generate if middleware feature is enabled
         #middleware_impl
+
+        // Helper for blocking client - only generate if blocking feature is enabled
+        #blocking_impl
 
     })
 }

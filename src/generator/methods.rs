@@ -13,6 +13,25 @@ pub fn generate_client_method(
     http_method: &str,
     operation: &openapiv3::Operation,
 ) -> Result<TokenStream2, String> {
+    generate_client_method_with_mode(path, http_method, operation, false)
+}
+
+/// Generate a blocking API method from an OpenAPI operation
+pub fn generate_blocking_client_method(
+    path: &str,
+    http_method: &str,
+    operation: &openapiv3::Operation,
+) -> Result<TokenStream2, String> {
+    generate_client_method_with_mode(path, http_method, operation, true)
+}
+
+/// Generate a single API method from an OpenAPI operation with async/blocking mode
+fn generate_client_method_with_mode(
+    path: &str,
+    http_method: &str,
+    operation: &openapiv3::Operation,
+    is_blocking: bool,
+) -> Result<TokenStream2, String> {
     let method_name = operation
         .operation_id
         .as_ref()
@@ -108,38 +127,78 @@ pub fn generate_client_method(
 
     // Generate response parsing based on content type
     let response_parsing = if content_type.starts_with("text/") {
-        quote! {
-            if response.status().is_success() {
-                let result: String = response.text().await?;
-                Ok(result)
-            } else {
-                Err(ApiError::Api {
-                    status: response.status().as_u16(),
-                    message: response.text().await.unwrap_or_else(|_| "Unknown error".to_string()),
-                })
+        if is_blocking {
+            quote! {
+                if response.status().is_success() {
+                    let result: String = response.text()?;
+                    Ok(result)
+                } else {
+                    Err(ApiError::Api {
+                        status: response.status().as_u16(),
+                        message: response.text().unwrap_or_else(|_| "Unknown error".to_string()),
+                    })
+                }
+            }
+        } else {
+            quote! {
+                if response.status().is_success() {
+                    let result: String = response.text().await?;
+                    Ok(result)
+                } else {
+                    Err(ApiError::Api {
+                        status: response.status().as_u16(),
+                        message: response.text().await.unwrap_or_else(|_| "Unknown error".to_string()),
+                    })
+                }
             }
         }
     } else {
-        quote! {
-            if response.status().is_success() {
-                let result = response.json().await?;
-                Ok(result)
-            } else {
-                Err(ApiError::Api {
-                    status: response.status().as_u16(),
-                    message: response.text().await.unwrap_or_else(|_| "Unknown error".to_string()),
-                })
+        if is_blocking {
+            quote! {
+                if response.status().is_success() {
+                    let result = response.json()?;
+                    Ok(result)
+                } else {
+                    Err(ApiError::Api {
+                        status: response.status().as_u16(),
+                        message: response.text().unwrap_or_else(|_| "Unknown error".to_string()),
+                    })
+                }
+            }
+        } else {
+            quote! {
+                if response.status().is_success() {
+                    let result = response.json().await?;
+                    Ok(result)
+                } else {
+                    Err(ApiError::Api {
+                        status: response.status().as_u16(),
+                        message: response.text().await.unwrap_or_else(|_| "Unknown error".to_string()),
+                    })
+                }
             }
         }
     };
 
+    let (signature, send_call) = if is_blocking {
+        (
+            quote! { pub fn #method_name(&self, #(#params)* #body_param) -> ApiResult<#return_type> },
+            quote! { let response = Self::send_request(request)?; }
+        )
+    } else {
+        (
+            quote! { pub async fn #method_name(&self, #(#params)* #body_param) -> ApiResult<#return_type> },
+            quote! { let response = Self::send_request(request).await?; }
+        )
+    };
+
     Ok(quote! {
         #doc_comment
-        pub async fn #method_name(&self, #(#params)* #body_param) -> ApiResult<#return_type> {
+        #signature {
             #url_building
             #request_building
 
-            let response = Self::send_request(request).await?;
+            #send_call
 
             #response_parsing
         }
