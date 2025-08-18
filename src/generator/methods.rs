@@ -1,11 +1,13 @@
+use heck::ToSnakeCase;
 use openapiv3::ReferenceOr;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
-use heck::ToSnakeCase;
 
-use crate::utils::create_rust_safe_ident;
-use crate::codegen::{ParameterLocation, process_parameter, generate_url_building, reference_or_schema_to_rust_type};
+use crate::codegen::{
+    ParameterLocation, generate_url_building, process_parameter, reference_or_schema_to_rust_type,
+};
 use crate::generator::docs::generate_method_doc_comment;
+use crate::utils::create_rust_safe_ident;
 
 /// Generate a single API method from an OpenAPI operation
 pub fn generate_client_method(
@@ -63,18 +65,26 @@ fn generate_client_method_with_mode(
         };
 
         let (param_name, param_schema, location) = match param {
-            openapiv3::Parameter::Query { parameter_data, .. } => {
-                (&parameter_data.name, &parameter_data.format, ParameterLocation::Query)
-            }
-            openapiv3::Parameter::Path { parameter_data, .. } => {
-                (&parameter_data.name, &parameter_data.format, ParameterLocation::Path)
-            }
-            openapiv3::Parameter::Header { parameter_data, .. } => {
-                (&parameter_data.name, &parameter_data.format, ParameterLocation::Header)
-            }
-            openapiv3::Parameter::Cookie { parameter_data, .. } => {
-                (&parameter_data.name, &parameter_data.format, ParameterLocation::Cookie)
-            }
+            openapiv3::Parameter::Query { parameter_data, .. } => (
+                &parameter_data.name,
+                &parameter_data.format,
+                ParameterLocation::Query,
+            ),
+            openapiv3::Parameter::Path { parameter_data, .. } => (
+                &parameter_data.name,
+                &parameter_data.format,
+                ParameterLocation::Path,
+            ),
+            openapiv3::Parameter::Header { parameter_data, .. } => (
+                &parameter_data.name,
+                &parameter_data.format,
+                ParameterLocation::Header,
+            ),
+            openapiv3::Parameter::Cookie { parameter_data, .. } => (
+                &parameter_data.name,
+                &parameter_data.format,
+                ParameterLocation::Cookie,
+            ),
         };
 
         let param_info = process_parameter(param_name, param_schema, location)?;
@@ -82,15 +92,18 @@ fn generate_client_method_with_mode(
     }
 
     // Separate parameters by location
-    let path_params: Vec<_> = all_params.iter()
+    let path_params: Vec<_> = all_params
+        .iter()
         .filter(|p| p.location == ParameterLocation::Path)
         .collect();
-    let query_params: Vec<_> = all_params.iter()
+    let query_params: Vec<_> = all_params
+        .iter()
         .filter(|p| p.location == ParameterLocation::Query)
         .collect();
 
     // Generate parameter list for function signature
-    let params = all_params.iter()
+    let params = all_params
+        .iter()
         .filter(|p| p.location == ParameterLocation::Path || p.location == ParameterLocation::Query)
         .map(|param| {
             let param_ident = &param.ident;
@@ -183,12 +196,12 @@ fn generate_client_method_with_mode(
     let (signature, send_call) = if is_blocking {
         (
             quote! { pub fn #method_name(&self, #(#params)* #body_param) -> ApiResult<#return_type> },
-            quote! { let response = Self::send_request(request)?; }
+            quote! { let response = Self::send_request(request)?; },
         )
     } else {
         (
             quote! { pub async fn #method_name(&self, #(#params)* #body_param) -> ApiResult<#return_type> },
-            quote! { let response = Self::send_request(request).await?; }
+            quote! { let response = Self::send_request(request).await?; },
         )
     };
 
@@ -206,7 +219,9 @@ fn generate_client_method_with_mode(
 }
 
 /// Determine the return type and content type from an operation's responses
-fn determine_return_type_from_operation(operation: &openapiv3::Operation) -> Option<(TokenStream2, String)> {
+fn determine_return_type_from_operation(
+    operation: &openapiv3::Operation,
+) -> Option<(TokenStream2, String)> {
     let response_200 = operation
         .responses
         .responses
@@ -215,7 +230,7 @@ fn determine_return_type_from_operation(operation: &openapiv3::Operation) -> Opt
         ReferenceOr::Reference { .. } => return None,
         ReferenceOr::Item(item) => item,
     };
-    
+
     // Try application/json first - this is the most common case
     if let Some(content) = response.content.get("application/json") {
         if let Some(schema_ref) = content.schema.as_ref() {
@@ -224,17 +239,17 @@ fn determine_return_type_from_operation(operation: &openapiv3::Operation) -> Opt
             }
         }
     }
-    
+
     // Only try text types if no JSON content was found
     // Try text/plain; charset=utf-8 first (more specific)
     if let Some(_content) = response.content.get("text/plain; charset=utf-8") {
         return Some((quote! { String }, "text/plain; charset=utf-8".to_string()));
     }
-    
+
     // Try text/plain as fallback
     if let Some(_content) = response.content.get("text/plain") {
         return Some((quote! { String }, "text/plain".to_string()));
     }
-    
+
     None
 }

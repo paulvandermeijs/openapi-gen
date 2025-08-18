@@ -6,9 +6,9 @@ openapi_client!("openapi.json", "FeatureTestApi");
 #[test]
 fn test_all_crate_features() {
     let _client = FeatureTestApi::new("https://api.test.com/v2");
-    
+
     // This test validates that our comprehensive OpenAPI schema exercises all features:
-    
+
     // 1. Multiple HTTP methods (GET, POST, PUT, DELETE)
     // 2. Path parameters (userId, postId)
     // 3. Query parameters (limit, offset, type, self)
@@ -43,9 +43,9 @@ fn test_all_crate_features() {
 #[test]
 fn test_generated_method_signatures() {
     let _client = FeatureTestApi::new("https://api.test.com/v2");
-    
+
     // Test that methods with the expected signatures are generated:
-    
+
     // Methods with various parameter types
     // client.list_users(limit: Option<i32>, offset: Option<i64>, r#type: Option<String>)
     // client.create_user(body: serde_json::Value)
@@ -54,7 +54,7 @@ fn test_generated_method_signatures() {
     // client.delete_user(user_id: i64)
     // client.get_post_comments(post_id: String, r#self: Option<bool>)
     // client.r#const() // Tests keyword handling in operation ID
-    
+
     // If this compiles, it means:
     // 1. All methods were generated with correct names
     // 2. Parameter types are correctly mapped
@@ -80,7 +80,7 @@ fn test_generated_types() {
     // - FieldError (nested error object)
     // - SimpleString (type alias)
     // - NumberArray (type alias for array)
-    
+
     // If this compiles, it means all types were generated correctly
 }
 
@@ -89,6 +89,6 @@ fn test_keyword_field_handling() {
     // This test specifically validates Rust keyword handling
     // The schema includes fields named "type", "self", "const", and "r#type"
     // These should be converted to r#type, r#self, r#const, etc.
-    
+
     // If this compiles without errors, keyword handling works correctly
 }

@@ -1,10 +1,10 @@
+use heck::ToSnakeCase;
 use openapiv3::{ReferenceOr, SchemaKind, Type};
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::quote;
-use heck::ToSnakeCase;
 
-use crate::utils::create_rust_safe_ident;
 use crate::codegen::reference_or_schema_to_rust_type;
+use crate::utils::create_rust_safe_ident;
 
 /// Information about a parameter for code generation
 pub struct ParameterInfo {
@@ -42,14 +42,12 @@ pub fn process_parameter(
 
     // Check if this is an array parameter
     let is_array = match param_schema {
-        openapiv3::ParameterSchemaOrContent::Schema(schema_ref) => {
-            match schema_ref {
-                ReferenceOr::Item(schema) => {
-                    matches!(schema.schema_kind, SchemaKind::Type(Type::Array(_)))
-                }
-                _ => false,
+        openapiv3::ParameterSchemaOrContent::Schema(schema_ref) => match schema_ref {
+            ReferenceOr::Item(schema) => {
+                matches!(schema.schema_kind, SchemaKind::Type(Type::Array(_)))
             }
-        }
+            _ => false,
+        },
         _ => false,
     };
 
@@ -92,7 +90,7 @@ pub fn generate_url_building(
         let query_building = query_params.iter().map(|param| {
             let param_name = &param.name;
             let param_ident = &param.ident;
-            
+
             if param.is_array {
                 quote! {
                     // Handle array parameters by joining with commas
@@ -111,9 +109,9 @@ pub fn generate_url_building(
         });
 
         url_building.extend(quote! {
-            let mut parsed_url = reqwest::Url::parse(&url).map_err(|e| ApiError::Api { 
-                status: 400, 
-                message: format!("Invalid URL: {}", e) 
+            let mut parsed_url = reqwest::Url::parse(&url).map_err(|e| ApiError::Api {
+                status: 400,
+                message: format!("Invalid URL: {}", e)
             })?;
             #(#query_building)*
             let url = parsed_url.to_string();

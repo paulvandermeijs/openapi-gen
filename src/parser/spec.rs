@@ -1,5 +1,5 @@
+use super::{OpenApiInput, fetch_url_content, is_url, is_yaml_format};
 use openapiv3::OpenAPI;
-use super::{is_url, is_yaml_format, fetch_url_content, OpenApiInput};
 
 /// Load and parse an OpenAPI specification from file or URL
 pub fn load_openapi_spec(input: &OpenApiInput) -> Result<OpenAPI, String> {

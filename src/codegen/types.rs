@@ -1,7 +1,7 @@
+use heck::ToPascalCase;
 use openapiv3::{ReferenceOr, Schema, SchemaKind, Type};
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
-use heck::ToPascalCase;
 
 /// Convert an OpenAPI schema to a Rust type
 pub fn schema_to_rust_type(schema: &Schema) -> Result<TokenStream2, String> {

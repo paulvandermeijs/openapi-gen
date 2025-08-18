@@ -29,8 +29,7 @@ fn test_client_with_blocking() {
     let blocking_client = reqwest::blocking::Client::new();
 
     // Test with_client method with blocking client
-    let api_with_blocking = 
-        BlockingClient::with_client("https://api.example.com", blocking_client);
+    let api_with_blocking = BlockingClient::with_client("https://api.example.com", blocking_client);
 
     // Ensure correct types
     let _: BlockingClient<reqwest::blocking::Client> = api_with_blocking;
@@ -64,16 +63,16 @@ fn test_generic_client_types() {
 fn test_blocking_methods_exist() {
     // This test verifies that blocking methods are generated with correct signatures
     openapi_client!("openapi.json", "BlockingMethodsClient");
-    
+
     let blocking_client = reqwest::blocking::Client::new();
     let _client = BlockingMethodsClient::with_client("https://api.example.com", blocking_client);
-    
+
     // These method calls validate that:
     // 1. Blocking methods exist
     // 2. They have the correct (non-async) signatures
     // 3. They return the same types as async versions but without Future wrapper
     // Note: We're not actually calling them, just verifying they compile
-    
+
     // Example method signatures that should exist:
     // client.list_users(Some(10), Some(0), Some("active".to_string())) -> ApiResult<UserList>
     // client.get_user_by_id(123) -> ApiResult<User>

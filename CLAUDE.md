@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Run tests**: `cargo test`
 - **Run specific test**: `cargo test test_name`
 - **Check compilation**: `cargo check`
-- **Format code**: `cargo fmt`
+- **Format code**: `cargo fmt` - **IMPORTANT: Always run after making changes**
 - **Lint code**: `cargo clippy`
 
 ## Architecture Overview

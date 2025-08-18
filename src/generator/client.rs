@@ -2,7 +2,7 @@ use openapiv3::{OpenAPI, ReferenceOr};
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::quote;
 
-use crate::generator::methods::{generate_client_method, generate_blocking_client_method};
+use crate::generator::methods::{generate_blocking_client_method, generate_client_method};
 
 /// Generate the complete client implementation
 pub fn generate_client_impl(spec: &OpenAPI, client_name: &Ident) -> Result<TokenStream2, String> {
@@ -32,7 +32,7 @@ pub fn generate_client_impl(spec: &OpenAPI, client_name: &Ident) -> Result<Token
                 // Generate async methods
                 let method_tokens = generate_client_method(path, method, op)?;
                 api_methods.extend(method_tokens);
-                
+
                 // Generate blocking methods if feature is enabled
                 if cfg!(feature = "blocking") {
                     let blocking_method_tokens = generate_blocking_client_method(path, method, op)?;

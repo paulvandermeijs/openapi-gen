@@ -1,12 +1,14 @@
-use openapiv3::{ObjectType, OpenAPI, ReferenceOr, Schema, SchemaData, SchemaKind, StringType, Type};
+use heck::{ToPascalCase, ToSnakeCase};
+use openapiv3::{
+    ObjectType, OpenAPI, ReferenceOr, Schema, SchemaData, SchemaKind, StringType, Type,
+};
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
 use std::collections::HashSet;
-use heck::{ToPascalCase, ToSnakeCase};
 
-use crate::utils::create_rust_safe_ident;
 use crate::codegen::schema_to_rust_type;
 use crate::generator::docs::generate_doc_comment;
+use crate::utils::create_rust_safe_ident;
 
 /// Generate all structs from OpenAPI components
 pub fn generate_structs(spec: &OpenAPI) -> Result<TokenStream2, String> {
