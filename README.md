@@ -174,7 +174,9 @@ let client = MyApiClient::with_client("https://api.example.com", http_client);
 
 ### Middleware Support (Optional Feature)
 
-The crate supports `reqwest-middleware` for advanced use cases like request signing, retries, and logging. Enable the `middleware` feature in your `Cargo.toml`:
+The crate supports `reqwest-middleware` for advanced use cases like request
+signing, retries, and logging. Enable the `middleware` feature in your
+`Cargo.toml`:
 
 ```toml
 [dependencies]
@@ -200,6 +202,7 @@ let api = MyApiClient::with_client("https://api.example.com", middleware_client)
 ```
 
 This enables use cases like:
+
 - **Request signing** (e.g., for biscuit tokens)
 - **Automatic retries** with exponential backoff
 - **Request/response logging**
@@ -208,7 +211,8 @@ This enables use cases like:
 
 ### Blocking Client Support (Optional Feature)
 
-The crate supports synchronous/blocking HTTP clients via the `blocking` feature flag. Enable it in your `Cargo.toml`:
+The crate supports synchronous/blocking HTTP clients via the `blocking` feature
+flag. Enable it in your `Cargo.toml`:
 
 ```toml
 [dependencies]
@@ -232,6 +236,7 @@ let users = api.list_users(Some(10), Some(0))?;
 ```
 
 **Key differences:**
+
 - Methods are synchronous (`fn` instead of `async fn`)
 - No `.await` needed on method calls
 - Same method names and signatures as async versions
@@ -239,12 +244,14 @@ let users = api.list_users(Some(10), Some(0))?;
 
 ## Parameter Handling
 
-OpenAPI parameters are mapped to Rust function parameters following OpenAPI 3.0 specification rules:
+OpenAPI parameters are mapped to Rust function parameters following OpenAPI 3.0
+specification rules:
 
 ### Required vs Optional Parameters
 
 - **Path parameters**: Always required (no `Option` wrapper)
-- **Query/Header/Cookie parameters**: Optional by default, wrapped in `Option<T>` unless marked `required: true`
+- **Query/Header/Cookie parameters**: Optional by default, wrapped in
+  `Option<T>` unless marked `required: true`
 
 ```rust
 // Path parameters are always required
@@ -265,6 +272,56 @@ let user = client.get_user_by_id(123).await?;
 let comments = client.get_post_comments("post123", Some(true)).await?;
 let filtered_users = client.list_users(None, None, Some("admin")).await?;
 ```
+
+### Parameter Structs (Optional Feature)
+
+For operations with many parameters, you can enable parameter structs to improve
+ergonomics. Enable the feature in your macro invocation:
+
+```rust
+// Enable parameter structs with the third argument
+openapi_client!("openapi.json", "MyApiClient", use_param_structs = true);
+```
+
+This generates dedicated parameter structs for each operation:
+
+```rust
+// Instead of multiple parameters:
+// client.list_users(Some(10), Some(0), Some("admin"), None, None).await?
+
+// Use parameter structs with fluent API:
+let params = ListUsersParams::new()
+    .with_limit(10)
+    .with_offset(0)
+    .with_type("admin");
+let users = client.list_users(params).await?;
+
+// Or use Default for all optional parameters (when no required params):
+let users = client.list_users(ListUsersParams::default()).await?;
+
+// Required parameters are passed to new():
+let params = GetUserByIdParams::new(123);  // Required path parameter
+let user = client.get_user_by_id(params).await?;
+
+// Mix required and optional parameters:
+let params = GetPostCommentsParams::new("post-123")  // Required param
+    .with_self_(true);  // Optional param
+let comments = client.get_post_comments(params).await?;
+```
+
+**Benefits of parameter structs:**
+
+- **Cleaner code** - No need to pass multiple `None` values
+- **Named parameters** - Clear what each value represents
+- **Fluent API** - Chain `with_*` methods to set only the parameters you need
+- **Type safety** - Required parameters enforced at compile time
+- **Future-proof** - Adding new optional parameters won't break existing code
+
+**When to use:**
+
+- Operations with 3+ parameters
+- APIs that frequently add new optional parameters
+- When you want more readable client code
 
 ## Examples
 
@@ -316,6 +373,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ## Dependencies
 
 **Runtime dependencies** (required in your project):
+
 - `reqwest` - HTTP client with JSON support
 - `serde` - Serialization framework (with derive feature)
 - `serde_json` - JSON serialization
@@ -323,6 +381,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 - `tokio` - Async runtime
 
 **Build-time dependencies** (used by the macro):
+
 - `proc-macro2`, `quote`, `syn` - Procedural macro infrastructure
 - `openapiv3` - OpenAPI 3.0 specification parsing
 - `serde_yaml` - YAML parsing for specs

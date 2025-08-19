@@ -1,4 +1,4 @@
-use heck::ToSnakeCase;
+use heck::{ToPascalCase, ToSnakeCase};
 use openapiv3::ReferenceOr;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
@@ -14,8 +14,9 @@ pub fn generate_client_method(
     path: &str,
     http_method: &str,
     operation: &openapiv3::Operation,
+    use_param_structs: bool,
 ) -> Result<TokenStream2, String> {
-    generate_client_method_with_mode(path, http_method, operation, false)
+    generate_client_method_with_mode(path, http_method, operation, false, use_param_structs)
 }
 
 /// Generate a blocking API method from an OpenAPI operation
@@ -23,8 +24,9 @@ pub fn generate_blocking_client_method(
     path: &str,
     http_method: &str,
     operation: &openapiv3::Operation,
+    use_param_structs: bool,
 ) -> Result<TokenStream2, String> {
-    generate_client_method_with_mode(path, http_method, operation, true)
+    generate_client_method_with_mode(path, http_method, operation, true, use_param_structs)
 }
 
 /// Generate a single API method from an OpenAPI operation with async/blocking mode
@@ -33,6 +35,7 @@ fn generate_client_method_with_mode(
     http_method: &str,
     operation: &openapiv3::Operation,
     is_blocking: bool,
+    use_param_structs: bool,
 ) -> Result<TokenStream2, String> {
     let method_name = operation
         .operation_id
@@ -106,17 +109,66 @@ fn generate_client_method_with_mode(
         .collect();
 
     // Generate parameter list for function signature
-    let params = all_params
-        .iter()
-        .filter(|p| p.location == ParameterLocation::Path || p.location == ParameterLocation::Query)
-        .map(|param| {
-            let param_ident = &param.ident;
-            let param_type = &param.param_type;
-            quote! { #param_ident: #param_type, }
-        });
+    let (params, param_access_code) = if use_param_structs {
+        // Use parameter struct approach
+        let method_params: Vec<_> = all_params
+            .iter()
+            .filter(|p| {
+                p.location == ParameterLocation::Path || p.location == ParameterLocation::Query
+            })
+            .collect();
+
+        if method_params.is_empty() {
+            // No parameters - keep empty signature
+            (quote! {}, quote! {})
+        } else {
+            // Generate parameter struct name
+            let operation_id = operation
+                .operation_id
+                .as_ref()
+                .cloned()
+                .unwrap_or_else(|| generate_operation_id_for_struct(http_method, path));
+            let struct_name = format_ident!("{}Params", operation_id.to_pascal_case());
+
+            // Method signature uses parameter struct
+            let params = quote! { params: #struct_name, };
+
+            // Code to extract values from parameter struct
+            let param_extractions = method_params.iter().map(|param| {
+                let field_name = &param.ident;
+                let var_name = format_ident!("{}_value", field_name);
+                quote! {
+                    let #var_name = params.#field_name;
+                }
+            });
+
+            let param_access_code = quote! {
+                #(#param_extractions)*
+            };
+
+            (params, param_access_code)
+        }
+    } else {
+        // Use individual parameters approach (existing behavior)
+        let params = all_params
+            .iter()
+            .filter(|p| {
+                p.location == ParameterLocation::Path || p.location == ParameterLocation::Query
+            })
+            .map(|param| {
+                let param_ident = &param.ident;
+                let param_type = &param.param_type;
+                quote! { #param_ident: #param_type, }
+            });
+        (quote! { #(#params)* }, quote! {})
+    };
 
     // Generate URL building code
-    let url_building = generate_url_building(path, &path_params, &query_params);
+    let url_building = if use_param_structs {
+        generate_url_building_with_param_structs(path, &path_params, &query_params)
+    } else {
+        generate_url_building(path, &path_params, &query_params)
+    };
 
     // Handle request body
     let mut body_param = TokenStream2::new();
@@ -199,12 +251,12 @@ fn generate_client_method_with_mode(
 
     let (signature, send_call) = if is_blocking {
         (
-            quote! { pub fn #method_name(&self, #(#params)* #body_param) -> ApiResult<#return_type> },
+            quote! { pub fn #method_name(&self, #params #body_param) -> ApiResult<#return_type> },
             quote! { let response = Self::send_request(request)?; },
         )
     } else {
         (
-            quote! { pub async fn #method_name(&self, #(#params)* #body_param) -> ApiResult<#return_type> },
+            quote! { pub async fn #method_name(&self, #params #body_param) -> ApiResult<#return_type> },
             quote! { let response = Self::send_request(request).await?; },
         )
     };
@@ -212,6 +264,7 @@ fn generate_client_method_with_mode(
     Ok(quote! {
         #doc_comment
         #signature {
+            #param_access_code
             #url_building
             #request_building
 
@@ -256,4 +309,75 @@ fn determine_return_type_from_operation(
     }
 
     None
+}
+
+/// Generate operation ID from method and path (for parameter struct naming)
+fn generate_operation_id_for_struct(method: &str, path: &str) -> String {
+    // Convert path to camelCase operation name
+    let path_parts: Vec<&str> = path
+        .split('/')
+        .filter(|s| !s.is_empty() && !s.starts_with('{'))
+        .collect();
+
+    if path_parts.is_empty() {
+        method.to_string()
+    } else {
+        format!("{}{}", method, path_parts.join("_").to_pascal_case())
+    }
+}
+
+/// Generate URL building code when using parameter structs
+/// This is similar to generate_url_building but uses the extracted _value variables
+fn generate_url_building_with_param_structs(
+    path: &str,
+    path_params: &[&crate::codegen::params::ParameterInfo],
+    query_params: &[&crate::codegen::params::ParameterInfo],
+) -> TokenStream2 {
+    let mut url_building = if path_params.is_empty() {
+        quote! {
+            let mut url = format!("{}{}", self.base_url, #path);
+        }
+    } else {
+        // Handle path parameters using extracted values
+        let path_replacements = path_params.iter().map(|param| {
+            let param_name = &param.name;
+            let var_name = format_ident!("{}_value", param.ident);
+            let placeholder = format!("{{{}}}", param_name);
+            quote! {
+                path = path.replace(#placeholder, &#var_name.to_string());
+            }
+        });
+
+        quote! {
+            let mut path = #path.to_string();
+            #(#path_replacements)*
+            let mut url = format!("{}{}", self.base_url, path);
+        }
+    };
+
+    // Handle query parameters using extracted values
+    if !query_params.is_empty() {
+        let query_building = query_params.iter().map(|param| {
+            let param_name = &param.name;
+            let var_name = format_ident!("{}_value", param.ident);
+
+            if param.required {
+                quote! {
+                    url.push_str(&format!("{}{}={}", if url.contains('?') { "&" } else { "?" }, #param_name, #var_name));
+                }
+            } else {
+                quote! {
+                    if let Some(value) = &#var_name {
+                        url.push_str(&format!("{}{}={}", if url.contains('?') { "&" } else { "?" }, #param_name, value));
+                    }
+                }
+            }
+        });
+
+        url_building.extend(quote! {
+            #(#query_building)*
+        });
+    }
+
+    url_building
 }

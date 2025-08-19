@@ -5,7 +5,11 @@ use quote::quote;
 use crate::generator::methods::{generate_blocking_client_method, generate_client_method};
 
 /// Generate the complete client implementation
-pub fn generate_client_impl(spec: &OpenAPI, client_name: &Ident) -> Result<TokenStream2, String> {
+pub fn generate_client_impl(
+    spec: &OpenAPI,
+    client_name: &Ident,
+    use_param_structs: bool,
+) -> Result<TokenStream2, String> {
     let mut api_methods = TokenStream2::new();
     let mut blocking_api_methods = TokenStream2::new();
 
@@ -30,12 +34,13 @@ pub fn generate_client_impl(spec: &OpenAPI, client_name: &Ident) -> Result<Token
         ] {
             if let Some(op) = operation {
                 // Generate async methods
-                let method_tokens = generate_client_method(path, method, op)?;
+                let method_tokens = generate_client_method(path, method, op, use_param_structs)?;
                 api_methods.extend(method_tokens);
 
                 // Generate blocking methods if feature is enabled
                 if cfg!(feature = "blocking") {
-                    let blocking_method_tokens = generate_blocking_client_method(path, method, op)?;
+                    let blocking_method_tokens =
+                        generate_blocking_client_method(path, method, op, use_param_structs)?;
                     blocking_api_methods.extend(blocking_method_tokens);
                 }
             }

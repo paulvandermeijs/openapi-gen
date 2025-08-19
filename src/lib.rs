@@ -65,8 +65,15 @@ fn generate_client(input: &OpenApiInput) -> Result<TokenStream2, String> {
 
     // Generate components
     let structs = generate_structs(&spec)?;
-    let client_impl = generate_client_impl(&spec, &client_name)?;
+    let client_impl = generate_client_impl(&spec, &client_name, input.use_param_structs)?;
     let error_types = generate_error_types();
+
+    // Generate parameter structs if requested
+    let param_structs = if input.use_param_structs {
+        generate_param_structs(&spec)?
+    } else {
+        quote! {}
+    };
 
     // Generate client documentation
     let client_doc = generate_client_doc_comment(&spec, &client_name.to_string());
@@ -78,6 +85,8 @@ fn generate_client(input: &OpenApiInput) -> Result<TokenStream2, String> {
         #error_types
 
         #structs
+
+        #param_structs
 
         #client_doc
         #[derive(Clone)]
