@@ -22,7 +22,7 @@ Add this to your `Cargo.toml`:
 ```toml
 [dependencies]
 openapi-gen = "0.3"
-reqwest = { version = "0.11", features = ["json"] }
+reqwest = { version = "0.12", features = ["json"] }
 tokio = { version = "1.0", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -181,8 +181,8 @@ signing, retries, and logging. Enable the `middleware` feature in your
 ```toml
 [dependencies]
 openapi-gen = { version = "0.3", features = ["middleware"] }
-reqwest-middleware = "0.2"
-reqwest-retry = "0.2"  # Optional, for retry middleware
+reqwest-middleware = "0.4"
+reqwest-retry = "0.7"  # Optional, for retry middleware
 ```
 
 Example using middleware:
