@@ -1,3 +1,42 @@
+//! # OpenAPI Client Generator
+//!
+//! A Rust procedural macro crate that generates type-safe, async HTTP clients from OpenAPI 3.0 specifications.
+//!
+//! ## Features
+//!
+//! - **Zero-runtime dependencies** - Pure compile-time code generation
+//! - **Type-safe** - Full Rust type system integration with proper error handling
+//! - **Auto-documented** - Generates comprehensive documentation from OpenAPI descriptions
+//! - **Async/await** - Built on `reqwest` with full async support
+//! - **Parameter structs** - Optional ergonomic parameter handling for complex APIs
+//! - **Middleware support** - Optional `reqwest-middleware` integration
+//! - **Blocking client support** - Optional synchronous HTTP client generation
+//!
+//! ## Quick Start
+//!
+//! Add to your `Cargo.toml`:
+//! ```toml
+//! [dependencies]
+//! openapi-gen = "0.3"
+//! reqwest = { version = "0.12", features = ["json"] }
+//! tokio = { version = "1.0", features = ["full"] }
+//! serde = { version = "1.0", features = ["derive"] }
+//! serde_json = "1.0"
+//! thiserror = "1.0"
+//! ```
+//!
+//! ## Usage
+//!
+//! See the [`openapi_client!`] macro documentation for detailed usage examples.
+//!
+//! For comprehensive documentation, examples, and advanced features, 
+//! see the [README](https://github.com/paulvandermeijs/openapi-gen#readme).
+//!
+//! ## Optional Features
+//!
+//! - `middleware` - Enables `reqwest-middleware` support for advanced HTTP client features
+//! - `blocking` - Generates synchronous HTTP clients using `reqwest::blocking`
+
 mod codegen;
 mod generator;
 mod parser;

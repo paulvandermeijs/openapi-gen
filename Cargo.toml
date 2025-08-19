@@ -2,11 +2,14 @@
 name = "openapi-gen"
 version = "0.3.1"
 edition = "2024"
-description = "Rust macro to generate client from OpenAPI spec."
+description = "Generate type-safe, async HTTP clients from OpenAPI 3.0 specifications"
 license = "MIT" 
 authors = ["Paul van der Meijs"]
 repository = "https://github.com/paulvandermeijs/openapi-gen"
-keywords = ["openapi", "api-client", "generator"]
+documentation = "https://docs.rs/openapi-gen"
+homepage = "https://github.com/paulvandermeijs/openapi-gen"
+keywords = ["openapi", "api-client", "generator", "async", "http"]
+categories = ["api-bindings", "web-programming::http-client", "development-tools::procedural-macro-helpers"]
 
 
 [lib]
@@ -34,5 +37,5 @@ async-trait = { version = "0.1", optional = true }
 
 [dev-dependencies]
 tokio = { version = "1.0", features = ["rt", "rt-multi-thread", "macros"] }
-reqwest-middleware = "0.4"
+reqwest-middleware = { version = "0.4", features = ["json"] }
 reqwest-retry = "0.7"

@@ -1,3 +1,8 @@
+//! Code generation components for OpenAPI client generation.
+//!
+//! This module contains the core code generation logic that transforms
+//! parsed OpenAPI specifications into Rust client code.
+
 pub mod client;
 pub mod docs;
 pub mod errors;
