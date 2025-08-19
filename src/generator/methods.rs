@@ -361,14 +361,27 @@ fn generate_url_building_with_param_structs(
             let param_name = &param.name;
             let var_name = format_ident!("{}_value", param.ident);
 
-            if param.required {
-                quote! {
-                    url.push_str(&format!("{}{}={}", if url.contains('?') { "&" } else { "?" }, #param_name, #var_name));
-                }
+            // Define the formatting expression once for both required and optional
+            let formatting_expr = if param.is_array {
+                quote! { #var_name.iter().map(|v| v.to_string()).collect::<Vec<String>>().join(",") }
             } else {
+                quote! { #var_name.to_string() }
+            };
+
+            // Common code for appending the parameter
+            let append_param = quote! {
+                let formatted_value = #formatting_expr;
+                url.push_str(&format!("{}{}={}", if url.contains('?') { "&" } else { "?" }, #param_name, formatted_value));
+            };
+
+            if param.required {
+                // For required params, use the value directly
+                append_param
+            } else {
+                // For optional params, shadow the variable name after unwrapping
                 quote! {
-                    if let Some(value) = &#var_name {
-                        url.push_str(&format!("{}{}={}", if url.contains('?') { "&" } else { "?" }, #param_name, value));
+                    if let Some(#var_name) = &#var_name {
+                        #append_param
                     }
                 }
             }
