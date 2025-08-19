@@ -76,12 +76,13 @@ pub fn generate_client_doc_comment(spec: &OpenAPI, client_name: &str) -> TokenSt
     // Add usage example
     doc_lines.push("".to_string()); // Empty line separator
     doc_lines.push("# Example".to_string());
-    doc_lines.push("```rust".to_string());
+    doc_lines.push("```rust,no_run".to_string());
     doc_lines.push(format!(
         "let client = {}::new(\"https://api.example.com\");",
         client_name
     ));
-    doc_lines.push("let result = client.some_method().await?;".to_string());
+    doc_lines.push("// Call your API methods".to_string());
+    doc_lines.push("let result = client.your_api_method().await?;".to_string());
     doc_lines.push("```".to_string());
 
     // Generate doc attributes for each line
