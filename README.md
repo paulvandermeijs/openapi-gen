@@ -178,10 +178,13 @@ The crate supports `reqwest-middleware` for advanced use cases like request
 signing, retries, and logging. Enable the `middleware` feature in your
 `Cargo.toml`:
 
+> [!NOTE]
+> The `json` feature is required for `reqwest-middleware` when your API includes operations with request bodies (POST, PUT, PATCH), which is common in most APIs.
+
 ```toml
 [dependencies]
 openapi-gen = { version = "0.3", features = ["middleware"] }
-reqwest-middleware = "0.4"
+reqwest-middleware = { version = "0.4", features = ["json"] }
 reqwest-retry = "0.7"  # Optional, for retry middleware
 ```
 

@@ -29,7 +29,7 @@ thiserror = "1.0"
 openapiv3 = "2.2"
 serde_yaml = "0.9"
 heck = "0.5"
-reqwest-middleware = { version = "0.4", optional = true }
+reqwest-middleware = { version = "0.4", optional = true, features = ["json"] }
 async-trait = { version = "0.1", optional = true }
 
 [dev-dependencies]
