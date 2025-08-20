@@ -277,13 +277,19 @@ let comments = client.get_post_comments("post123", Some(true)).await?;
 let filtered_users = client.list_users(None, None, Some("admin")).await?;
 ```
 
-### Parameter Structs (Optional Feature)
+## Configuration Options
 
-For operations with many parameters, you can enable parameter structs to improve
-ergonomics. Enable the feature in your macro invocation:
+The `openapi_client!` macro supports several configuration options to customize
+the generated code:
+
+### Parameter Structs (`use_param_structs`)
+
+Generate dedicated parameter structs for operations instead of individual
+parameters:
 
 ```rust
 // Enable parameter structs
+openapi_client!("openapi.json", use_param_structs = true);
 openapi_client!("openapi.json", "MyApiClient", use_param_structs = true);
 ```
 
@@ -327,16 +333,9 @@ let comments = client.get_post_comments(params).await?;
 - APIs that frequently add new optional parameters
 - When you want more readable client code
 
-## Configuration Options
+### Custom Struct Attributes (`struct_attrs`)
 
-The `openapi_client!` macro supports several configuration options to customize
-the generated code:
-
-### Custom Struct Attributes
-
-You can add custom attributes to all generated structs using the `struct_attrs`
-option. This is useful when you need additional derives or attributes on your
-data types:
+Add custom attributes to all generated structs:
 
 ```rust
 // Add PartialEq to all generated structs
@@ -378,8 +377,8 @@ The `struct_attrs` option:
 - Adding conditional compilation with `cfg` attributes
 - Adding custom derives from third-party crates
 
-**Note:** The default derives (`Debug`, `Clone`, `Serialize`, `Deserialize`) are
-always included as they are required for the client to function properly.
+> [!NOTE] The default derives (`Debug`, `Clone`, `Serialize`, `Deserialize`) are
+> always included as they are required for the client to function properly.
 
 ## Examples
 
@@ -437,14 +436,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 - `serde_json` - JSON serialization
 - `thiserror` - Error handling
 - `tokio` - Async runtime
-
-**Build-time dependencies** (used by the macro):
-
-- `proc-macro2`, `quote`, `syn` - Procedural macro infrastructure
-- `openapiv3` - OpenAPI 3.0 specification parsing
-- `serde_yaml` - YAML parsing for specs
-- `heck` - Case conversions
-- `tokio` - For compile-time URL fetching
+- `reqwest-middleware` - Middleware support (only required with `middleware`
+  feature)
 
 ## Development
 

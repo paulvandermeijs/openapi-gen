@@ -1,8 +1,10 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with
+code in this repository.
 
-**Note**: For general project information, features, and usage examples, see [README.md](README.md).
+**Note**: For general project information, features, and usage examples, see
+[README.md](README.md).
 
 ## Build and Test Commands
 
@@ -10,30 +12,45 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Run tests**: `cargo test`
 - **Run specific test**: `cargo test test_name`
 - **Check compilation**: `cargo check`
-- **Format code**: `cargo fmt` - **IMPORTANT: Always run after making changes**
+- **Format Rust code**: `cargo fmt` - **IMPORTANT: Always run after making Rust
+  code changes**
+- **Format Markdown**: `npx prettier --write "**/*.md"` - **IMPORTANT: Always
+  run after editing any .md files (README.md, CLAUDE.md, etc.)**
 - **Lint code**: `cargo clippy`
+
+**Note**: Only format Markdown files with Prettier. Do NOT use Prettier on Rust,
+TOML, JSON, YAML, or any other file types in this project.
 
 ## Code Organization Conventions
 
-- **Module structure**: Public API (types, functions) at the top of files, private helper functions at the bottom
-- **Variable shadowing**: Prefer Rust's variable shadowing over conditional variable naming for cleaner code
-- **Parameter ergonomics**: Use `&str` for method parameters, `String` for struct fields
+- **Module structure**: Public API (types, functions) at the top of files,
+  private helper functions at the bottom
+- **Variable shadowing**: Prefer Rust's variable shadowing over conditional
+  variable naming for cleaner code
+- **Parameter ergonomics**: Use `&str` for method parameters, `String` for
+  struct fields
 
 ## Architecture Overview
 
-This is a Rust procedural macro crate that generates HTTP API clients from OpenAPI 3.0 specifications. The macro reads OpenAPI JSON/YAML files at compile time and generates complete Rust client code with typed structs and async methods.
+This is a Rust procedural macro crate that generates HTTP API clients from
+OpenAPI 3.0 specifications. The macro reads OpenAPI JSON/YAML files at compile
+time and generates complete Rust client code with typed structs and async
+methods.
 
 ### Core Components
 
-- **Procedural macro** (`openapi_client!`): Main entry point that accepts the spec file path as first argument and optional client name as second argument
+- **Procedural macro** (`openapi_client!`): Main entry point that accepts the
+  spec file path as first argument and optional client name as second argument
 - **Code generation modules**:
   - `src/lib.rs`: Main macro entry point and orchestration
   - `src/generator/`: Core generation logic
-    - `client.rs`: Client struct and implementation generation (supports both async and blocking clients)
+    - `client.rs`: Client struct and implementation generation (supports both
+      async and blocking clients)
     - `methods.rs`: API method generation with proper parameter handling
     - `structs.rs`: Data structure generation from schemas
   - `src/codegen/`: Code generation utilities
-    - `params.rs`: Parameter processing and URL building with proper optional/required handling
+    - `params.rs`: Parameter processing and URL building with proper
+      optional/required handling
     - Other utilities for type conversion and documentation
 - **Generated client features**:
   - Async/await support via `reqwest` (default)
@@ -45,10 +62,12 @@ This is a Rust procedural macro crate that generates HTTP API clients from OpenA
   - Typed response parsing
   - Proper parameter handling following OpenAPI 3.0 spec:
     - Path parameters are always required
-    - Query/header/cookie parameters are optional by default unless marked `required: true`
+    - Query/header/cookie parameters are optional by default unless marked
+      `required: true`
     - String parameters use `&str` for better ergonomics
   - Comprehensive documentation generation:
-    - Client struct documentation from API info (title, description, version, license, etc.)
+    - Client struct documentation from API info (title, description, version,
+      license, etc.)
     - Method documentation from operation summaries and descriptions
     - Struct documentation from schema descriptions
     - Field-level documentation for struct properties
@@ -60,7 +79,7 @@ This is a Rust procedural macro crate that generates HTTP API clients from OpenA
 // From local file with auto-generated client name
 openapi_client!("path/to/openapi.json");
 
-// From URL with auto-generated client name  
+// From URL with auto-generated client name
 openapi_client!("https://api.example.com/openapi.json");
 
 // With custom client name (works for both files and URLs)
@@ -80,13 +99,16 @@ let result = client.some_endpoint(params).await?;
 - `thiserror`: Error handling
 - `heck`: Case conversions (PascalCase, snake_case)
 
-The crate uses Rust 2024 edition and includes a comprehensive test OpenAPI specification (`openapi.json`) that validates all crate features:
+The crate uses Rust 2024 edition and includes a comprehensive test OpenAPI
+specification (`openapi.json`) that validates all crate features:
 
 ## Test API Features
 
-The included test schema (`openapi.json`) is specifically designed to exercise all crate capabilities:
+The included test schema (`openapi.json`) is specifically designed to exercise
+all crate capabilities:
 
 ### API Operations
+
 - **Multiple HTTP methods**: GET, POST, PUT, DELETE
 - **Path parameters**: `/users/{userId}`, `/posts/{postId}/comments`
 - **Query parameters**: Including Rust keywords (`type`, `self`)
@@ -94,7 +116,9 @@ The included test schema (`openapi.json`) is specifically designed to exercise a
 - **Various response types**: Success, error, and empty responses
 
 ### Data Types & Structures
-- **All primitive types**: string, integer (int32/int64), number (float/double), boolean
+
+- **All primitive types**: string, integer (int32/int64), number (float/double),
+  boolean
 - **Complex objects**: Nested structures with references (`$ref`)
 - **Arrays**: Both simple arrays and arrays of objects
 - **Enums**: String enumerations with descriptions
@@ -102,15 +126,20 @@ The included test schema (`openapi.json`) is specifically designed to exercise a
 - **Optional vs required fields**: Mixed field requirements
 
 ### Edge Cases & Keyword Handling
+
 - **Rust keywords as field names**: `type`, `self`, `const`
 - **Rust keywords as parameter names**: Proper `r#` escaping or `_` suffix
 - **Rust keywords in operation IDs**: Tests method name generation
 - **Special keyword handling**: `self` → `self_` (cannot be raw identifier)
 
 ### Documentation Testing
-- **Rich API info**: Title, description, version, license, contact, terms of service
+
+- **Rich API info**: Title, description, version, license, contact, terms of
+  service
 - **Operation documentation**: Summary, description, and metadata
 - **Schema documentation**: Object and field descriptions
 - **Parameter documentation**: Detailed parameter descriptions
 
-This comprehensive test schema ensures that the generated clients handle real-world API complexity while maintaining type safety and proper documentation.
+This comprehensive test schema ensures that the generated clients handle
+real-world API complexity while maintaining type safety and proper
+documentation.
