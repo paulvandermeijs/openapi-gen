@@ -178,8 +178,9 @@ The crate supports `reqwest-middleware` for advanced use cases like request
 signing, retries, and logging. Enable the `middleware` feature in your
 `Cargo.toml`:
 
-> [!NOTE]
-> The `json` feature is required for `reqwest-middleware` when your API includes operations with request bodies (POST, PUT, PATCH), which is common in most APIs.
+> [!NOTE] The `json` feature is required for `reqwest-middleware` when your API
+> includes operations with request bodies (POST, PUT, PATCH), which is common in
+> most APIs.
 
 ```toml
 [dependencies]
@@ -282,7 +283,7 @@ For operations with many parameters, you can enable parameter structs to improve
 ergonomics. Enable the feature in your macro invocation:
 
 ```rust
-// Enable parameter structs with the third argument
+// Enable parameter structs
 openapi_client!("openapi.json", "MyApiClient", use_param_structs = true);
 ```
 
@@ -325,6 +326,60 @@ let comments = client.get_post_comments(params).await?;
 - Operations with 3+ parameters
 - APIs that frequently add new optional parameters
 - When you want more readable client code
+
+## Configuration Options
+
+The `openapi_client!` macro supports several configuration options to customize
+the generated code:
+
+### Custom Struct Attributes
+
+You can add custom attributes to all generated structs using the `struct_attrs`
+option. This is useful when you need additional derives or attributes on your
+data types:
+
+```rust
+// Add PartialEq to all generated structs
+openapi_client!("openapi.json", struct_attrs = (derive(PartialEq)));
+
+// Add multiple derives
+openapi_client!("openapi.json", struct_attrs = (derive(PartialEq, Hash)));
+
+// Combine with custom client name
+openapi_client!("openapi.json", "MyApi", struct_attrs = (derive(PartialEq)));
+
+// Add multiple types of attributes
+openapi_client!(
+    "openapi.json",
+    struct_attrs = (derive(PartialEq, Eq), cfg(feature = "extra"))
+);
+
+// Combine with parameter structs
+openapi_client!(
+    "openapi.json",
+    "MyApi",
+    use_param_structs = true,
+    struct_attrs = (derive(PartialEq))
+);
+```
+
+The `struct_attrs` option:
+
+- Applies to all generated structs (data types, enums, and parameter structs)
+- Adds attributes in addition to the default
+  `#[derive(Debug, Clone, Serialize, Deserialize)]`
+- Supports any valid Rust attribute syntax
+
+**Common use cases:**
+
+- Adding `PartialEq` for comparison operations
+- Adding `Hash` for using structs as HashMap keys
+- Adding `Eq`, `PartialOrd`, `Ord` for sorting
+- Adding conditional compilation with `cfg` attributes
+- Adding custom derives from third-party crates
+
+**Note:** The default derives (`Debug`, `Clone`, `Serialize`, `Deserialize`) are
+always included as they are required for the client to function properly.
 
 ## Examples
 

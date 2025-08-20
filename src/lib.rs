@@ -57,22 +57,33 @@ use parser::*;
 /// The specification format (JSON/YAML) is auto-detected from the file extension
 /// or URL path.
 ///
-/// Usage:
+/// # Usage
+/// 
 /// ```rust,ignore
 /// use openapi_gen::openapi_client;
 ///
-/// // From local file with auto-generated client name (derived from API title + "Api")
+/// // Basic usage
 /// openapi_client!("path/to/openapi.json");
-/// openapi_client!("path/to/openapi.yaml");
-///
-/// // From URL with auto-generated client name
 /// openapi_client!("https://api.example.com/openapi.json");
-/// openapi_client!("https://raw.githubusercontent.com/user/repo/main/openapi.yaml");
 ///
-/// // With custom client name (works for both files and URLs)
+/// // With custom client name
 /// openapi_client!("path/to/openapi.json", "MyApiClient");
-/// openapi_client!("https://api.example.com/openapi.json", "MyApiClient");
+///
+/// // With configuration options
+/// openapi_client!("openapi.json", use_param_structs = true);
+/// openapi_client!("openapi.json", struct_attrs = (derive(PartialEq)));
+/// openapi_client!(
+///     "openapi.json",
+///     "MyApiClient",
+///     use_param_structs = true,
+///     struct_attrs = (derive(PartialEq, Hash))
+/// );
 /// ```
+/// 
+/// # Configuration Options
+/// 
+/// - `use_param_structs` - Generate parameter structs for operations instead of individual parameters
+/// - `struct_attrs` - Add custom attributes to generated structs (in addition to default derives)
 #[proc_macro]
 pub fn openapi_client(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as OpenApiInput);
