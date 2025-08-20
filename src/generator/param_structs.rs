@@ -8,12 +8,15 @@ use crate::utils::create_rust_safe_ident;
 use heck::{ToPascalCase, ToSnakeCase};
 
 /// Generate parameter structs for all operations in the OpenAPI spec
-pub fn generate_param_structs(spec: &OpenAPI) -> Result<TokenStream2, String> {
+pub fn generate_param_structs(
+    spec: &OpenAPI,
+    struct_attrs: &[TokenStream2],
+) -> Result<TokenStream2, String> {
     let mut structs = Vec::new();
 
     for (path, path_item) in &spec.paths.paths {
         if let ReferenceOr::Item(path_item) = path_item {
-            generate_structs_for_path(path, path_item, &mut structs)?;
+            generate_structs_for_path(path, path_item, &mut structs, struct_attrs)?;
         }
     }
 
@@ -27,6 +30,7 @@ fn generate_structs_for_path(
     path: &str,
     path_item: &PathItem,
     structs: &mut Vec<TokenStream2>,
+    struct_attrs: &[TokenStream2],
 ) -> Result<(), String> {
     let operations = [
         ("get", &path_item.get),
@@ -41,7 +45,7 @@ fn generate_structs_for_path(
 
     for (method, operation) in operations {
         if let Some(operation) = operation {
-            generate_struct_for_operation(path, method, operation, structs)?;
+            generate_struct_for_operation(path, method, operation, structs, struct_attrs)?;
         }
     }
 
@@ -54,6 +58,7 @@ fn generate_struct_for_operation(
     method: &str,
     operation: &Operation,
     structs: &mut Vec<TokenStream2>,
+    struct_attrs: &[TokenStream2],
 ) -> Result<(), String> {
     // Get operation ID or generate one
     let operation_id = operation
@@ -112,7 +117,7 @@ fn generate_struct_for_operation(
     // Only generate struct if there are parameters
     if !params.is_empty() {
         let struct_name = format_ident!("{}Params", operation_id.to_pascal_case());
-        let struct_def = generate_param_struct(&struct_name, &params)?;
+        let struct_def = generate_param_struct(&struct_name, &params, struct_attrs)?;
         structs.push(struct_def);
     }
 
@@ -179,6 +184,7 @@ fn process_parameter_for_struct(
 fn generate_param_struct(
     struct_name: &Ident,
     params: &[ParameterInfo],
+    struct_attrs: &[TokenStream2],
 ) -> Result<TokenStream2, String> {
     // Separate required and optional parameters
     let required_params: Vec<_> = params.iter().filter(|p| p.required).collect();
@@ -215,7 +221,13 @@ fn generate_param_struct(
     // For parameter structs, we use String instead of &str to avoid lifetime complexity
     // This makes the API more ergonomic and avoids lifetime propagation issues
 
+    // Convert user attribute token streams to attributes
+    let user_attrs = struct_attrs.iter().map(|tokens| {
+        quote! { #[#tokens] }
+    });
+
     Ok(quote! {
+        #(#user_attrs)*
         pub struct #struct_name {
             #(#fields)*
         }

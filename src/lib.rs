@@ -29,7 +29,7 @@
 //!
 //! See the [`openapi_client!`] macro documentation for detailed usage examples.
 //!
-//! For comprehensive documentation, examples, and advanced features, 
+//! For comprehensive documentation, examples, and advanced features,
 //! see the [README](https://github.com/paulvandermeijs/openapi-gen#readme).
 //!
 //! ## Optional Features
@@ -103,13 +103,13 @@ fn generate_client(input: &OpenApiInput) -> Result<TokenStream2, String> {
     };
 
     // Generate components
-    let structs = generate_structs(&spec)?;
+    let structs = generate_structs(&spec, &input.struct_attrs)?;
     let client_impl = generate_client_impl(&spec, &client_name, input.use_param_structs)?;
     let error_types = generate_error_types();
 
     // Generate parameter structs if requested
     let param_structs = if input.use_param_structs {
-        generate_param_structs(&spec)?
+        generate_param_structs(&spec, &input.struct_attrs)?
     } else {
         quote! {}
     };

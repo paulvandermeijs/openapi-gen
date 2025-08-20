@@ -11,7 +11,10 @@ use crate::generator::docs::generate_doc_comment;
 use crate::utils::create_rust_safe_ident;
 
 /// Generate all structs from OpenAPI components
-pub fn generate_structs(spec: &OpenAPI) -> Result<TokenStream2, String> {
+pub fn generate_structs(
+    spec: &OpenAPI,
+    struct_attrs: &[TokenStream2],
+) -> Result<TokenStream2, String> {
     let mut generated_structs = TokenStream2::new();
 
     if let Some(components) = &spec.components {
@@ -22,7 +25,7 @@ pub fn generate_structs(spec: &OpenAPI) -> Result<TokenStream2, String> {
                     continue;
                 }
                 ReferenceOr::Item(schema) => {
-                    let struct_tokens = generate_struct_from_schema(name, schema)?;
+                    let struct_tokens = generate_struct_from_schema(name, schema, struct_attrs)?;
                     generated_structs.extend(struct_tokens);
                 }
             }
@@ -33,15 +36,26 @@ pub fn generate_structs(spec: &OpenAPI) -> Result<TokenStream2, String> {
 }
 
 /// Generate a struct from an OpenAPI schema
-fn generate_struct_from_schema(name: &str, schema: &Schema) -> Result<TokenStream2, String> {
+fn generate_struct_from_schema(
+    name: &str,
+    schema: &Schema,
+    struct_attrs: &[TokenStream2],
+) -> Result<TokenStream2, String> {
     let struct_name = format_ident!("{}", name.to_pascal_case());
     let doc_comment = generate_doc_comment(schema.schema_data.description.as_deref());
 
     match &schema.schema_kind {
         SchemaKind::Type(Type::Object(obj)) => {
             let fields = generate_struct_fields_from_object(name, obj, &schema.schema_data)?;
+
+            // Convert user attribute token streams to attributes
+            let user_attrs = struct_attrs.iter().map(|tokens| {
+                quote! { #[#tokens] }
+            });
+
             Ok(quote! {
                 #doc_comment
+                #(#user_attrs)*
                 #[derive(Debug, Clone, Serialize, Deserialize)]
                 pub struct #struct_name {
                     #fields
@@ -50,8 +64,15 @@ fn generate_struct_from_schema(name: &str, schema: &Schema) -> Result<TokenStrea
         }
         SchemaKind::Type(Type::String(string_schema)) if !string_schema.enumeration.is_empty() => {
             let variants = generate_enum_variants_from_string(string_schema)?;
+
+            // Convert user attribute token streams to attributes
+            let user_attrs = struct_attrs.iter().map(|tokens| {
+                quote! { #[#tokens] }
+            });
+
             Ok(quote! {
                 #doc_comment
+                #(#user_attrs)*
                 #[derive(Debug, Clone, Serialize, Deserialize)]
                 pub enum #struct_name {
                     #variants
@@ -59,7 +80,7 @@ fn generate_struct_from_schema(name: &str, schema: &Schema) -> Result<TokenStrea
             })
         }
         _ => {
-            // For other types, create a type alias
+            // For other types, create a type alias (attributes don't apply to type aliases)
             let rust_type = schema_to_rust_type(schema)?;
             Ok(quote! {
                 #doc_comment
